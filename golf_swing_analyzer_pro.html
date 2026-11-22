@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwingLab Pro — Biomechanical Golf Swing Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                            900: '#0f172a',
+                            950: '#080d17',
+                        },
+                        emerald: {
+                            450: '#10b981',
+                            550: '#059669',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for dark analytics aesthetic */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #10b981;
+        }
+
+        /* Custom range slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 9999px;
+            background: #1e293b;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #10b981;
+            border: 2px solid #0f172a;
+            margin-top: -5px;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+            transition: transform 0.1s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Grid overlay pattern for viewport */
+        .bg-telemetry-grid {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(16, 185, 129, 0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(16, 185, 129, 0.04) 1px, transparent 1px);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-200 min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 px-4 py-2.5">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <svg class="w-5 h-5 text-slate-950" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-base sm:text-lg tracking-tight text-white">SwingLab <span class="text-emerald-400">PRO</span></h1>
+                        <span class="hidden sm:inline-block text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Telemetry v4.2</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 hidden sm:block">2D Kinematic & Swing Plane Analysis Suite</p>
+                </div>
+            </div>
+
+            <!-- Source & Mode Controls -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Demo View Selector -->
+                <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800" id="demoViewGroup">
+                    <button onclick="setSourceMode('demo-dtl')" id="btn-demo-dtl" class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-emerald-500 text-slate-950 shadow-sm">
+                        Demo: Down-the-Line
+                    </button>
+                    <button onclick="setSourceMode('demo-fo')" id="btn-demo-fo" class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-white">
+                        Demo: Face-On
+                    </button>
+                </div>
+
+                <!-- Upload Custom Video Button -->
+                <label class="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition-all">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span>Upload Swing</span>
+                    <input type="file" id="videoUploadInput" accept="video/mp4,video/quicktime,video/webm" class="hidden" onchange="handleVideoUpload(event)">
+                </label>
+
+                <!-- Side-by-Side Comparison Toggle -->
+                <button onclick="toggleCompareMode()" id="btnCompareToggle" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition-all">
+                    <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" />
+                    </svg>
+                    <span>Pro Compare: <strong id="compareStatusText" class="text-slate-400">OFF</strong></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Toast Notification Banner (Replaces alert) -->
+    <div id="toastBanner" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-slate-900 border border-emerald-500/40 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs font-medium">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span id="toastMessage">Action completed</span>
+        </div>
+    </div>
+
+    <!-- Main Workspace Layout -->
+    <main class="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+        
+        <!-- LEFT / CENTER COLUMN: Video & Canvas Analyzer + Playback Deck (8 cols on desktop) -->
+        <div class="lg:col-span-8 flex flex-col gap-3">
+            
+            <!-- Drawing Toolbar & Swing Preset Selector -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-2">
+                <!-- Geometry Tools -->
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="text-[11px] font-mono uppercase tracking-wider text-slate-500 px-1.5 hidden sm:inline">Tools:</span>
+                    
+                    <button onclick="setTool('line')" id="tool-line" class="tool-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition-all" title="Draw Swing Plane / Spine Line">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 20L20 4"/></svg>
+                        <span>Line</span>
+                    </button>
+
+                    <button onclick="setTool('circle')" id="tool-circle" class="tool-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-800 transition-all" title="Draw Head Box / Stability Circle">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>
+                        <span>Circle</span>
+                    </button>
+
+                    <button onclick="setTool('angle')" id="tool-angle" class="tool-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-800 transition-all" title="3-Point Angle Protractor (Click 3 points)">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 19H5L16 5"/></svg>
+                        <span>Angle</span>
+                    </button>
+
+                    <div class="h-5 w-[1px] bg-slate-800 mx-1"></div>
+
+                    <!-- Color Swatches -->
+                    <div class="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800">
+                        <button onclick="setDrawColor('#facc15')" id="color-yellow" class="w-4 h-4 rounded-full bg-yellow-400 ring-2 ring-white scale-110 transition-transform" title="Neon Yellow"></button>
+                        <button onclick="setDrawColor('#22d3ee')" id="color-cyan" class="w-4 h-4 rounded-full bg-cyan-400 opacity-70 hover:opacity-100 transition-transform" title="Electric Cyan"></button>
+                        <button onclick="setDrawColor('#f472b6')" id="color-magenta" class="w-4 h-4 rounded-full bg-pink-400 opacity-70 hover:opacity-100 transition-transform" title="Neon Magenta"></button>
+                        <button onclick="setDrawColor('#10b981')" id="color-emerald" class="w-4 h-4 rounded-full bg-emerald-400 opacity-70 hover:opacity-100 transition-transform" title="Emerald Green"></button>
+                    </div>
+                </div>
+
+                <!-- Auto-Guides & Undo/Clear -->
+                <div class="flex items-center gap-1.5">
+                    <button onclick="toggleAutoGuides()" id="btnAutoGuides" class="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all" title="Toggle Biomechanical Reference Planes">
+                        Auto-Planes: ON
+                    </button>
+                    <button onclick="undoShape()" class="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all" title="Undo Last Drawing">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    </button>
+                    <button onclick="clearShapes()" class="px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-medium transition-all">
+                        Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Interactive Analyzer Viewport Container -->
+            <div id="viewportWrapper" class="relative w-full bg-slate-900 bg-telemetry-grid border border-slate-800 rounded-2xl overflow-hidden shadow-2xl aspect-[16/10] sm:aspect-[16/9] select-none">
+                
+                <!-- Split / Single Canvas Grid -->
+                <div id="canvasGrid" class="w-full h-full grid grid-cols-1">
+                    
+                    <!-- Primary Golfer Viewport (User Video OR Interactive Demo Skeleton) -->
+                    <div id="primaryPane" class="relative w-full h-full overflow-hidden flex items-center justify-center">
+                        <!-- Hidden HTML5 Video Element (rendered onto canvas or displayed under overlay) -->
+                        <video id="userVideo" class="hidden w-full h-full object-contain pointer-events-none" playsinline muted loop></video>
+                        
+                        <!-- Main Render Canvas (Draws Demo Golfer OR Video Frame + Telemetry + User Drawings) -->
+                        <canvas id="mainCanvas" class="w-full h-full block cursor-crosshair touch-none"></canvas>
+
+                        <!-- Top-Left Viewport HUD Badge -->
+                        <div class="absolute top-3 left-3 pointer-events-none flex flex-col gap-1">
+                            <div class="flex items-center gap-2 bg-slate-950/80 backdrop-blur-md border border-slate-800 px-2.5 py-1 rounded-lg">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                <span id="primarySourceLabel" class="text-[11px] font-mono font-semibold text-slate-200 uppercase">SUBJECT: DEMO SWING (DTL)</span>
+                            </div>
+                            <div id="swingFlawBadge" class="bg-amber-500/15 backdrop-blur-md border border-amber-500/30 px-2.5 py-0.5 rounded-lg text-[10px] font-mono text-amber-300">
+                                Profile: Slight Over-the-Top (+2.4° Path)
+                            </div>
+                        </div>
+
+                        <!-- Top-Right Live Angle Readout -->
+                        <div class="absolute top-3 right-3 pointer-events-none bg-slate-950/80 backdrop-blur-md border border-slate-800 px-3 py-1.5 rounded-xl text-right font-mono">
+                            <div class="text-[10px] text-slate-400 uppercase">Phase / Frame</div>
+                            <div class="text-xs sm:text-sm font-bold text-emerald-400">
+                                <span id="hudPhaseLabel">P1 Address</span> · <span id="hudFrameCounter" class="text-slate-200">001/120</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Secondary Pro Tour Reference Pane (Hidden until Compare Mode toggled ON) -->
+                    <div id="proComparePane" class="hidden relative w-full h-full overflow-hidden border-t md:border-t-0 md:border-l border-emerald-500/30 bg-slate-950/60">
+                        <canvas id="proCanvas" class="w-full h-full block"></canvas>
+                        
+                        <!-- Pro HUD Badge -->
+                        <div class="absolute top-3 left-3 pointer-events-none flex flex-col gap-1">
+                            <div class="flex items-center gap-2 bg-slate-950/85 backdrop-blur-md border border-cyan-500/30 px-2.5 py-1 rounded-lg">
+                                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                                <span class="text-[11px] font-mono font-semibold text-cyan-300 uppercase">TOUR BENCHMARK (PGA AVG)</span>
+                            </div>
+                            <div class="bg-emerald-500/15 backdrop-blur-md border border-emerald-500/30 px-2.5 py-0.5 rounded-lg text-[10px] font-mono text-emerald-300">
+                                On-Plane Slot · 3.0:1 Tempo · Neutral Path
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Drawing Helper Hint Pill -->
+                <div id="toolHintPill" class="absolute bottom-3 left-3 pointer-events-none bg-slate-950/80 backdrop-blur-md border border-slate-800 px-2.5 py-1 rounded-lg text-[11px] text-slate-300">
+                    Click & drag on canvas to draw a swing plane line
+                </div>
+            </div>
+
+            <!-- Frame-by-Frame Playback & P-Position Control Deck -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-3">
+                
+                <!-- Scrubbing Timeline Bar -->
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                        <span>0.00s</span>
+                        <span class="text-emerald-400 font-semibold" id="timelinePercentLabel">Position: P1 Address (0%)</span>
+                        <span id="totalDurationLabel">2.00s</span>
+                    </div>
+                    <div class="relative flex items-center">
+                        <input type="range" id="timelineSlider" min="0" max="119" value="0" step="1" class="w-full z-10" oninput="handleScrub(this.value)">
+                    </div>
+                </div>
+
+                <!-- Transport Buttons & Playback Speed -->
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <!-- Left: Step & Play/Pause -->
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="stepFrame(-1)" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all" title="Previous Frame (-1)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                        </button>
+
+                        <button onclick="togglePlay()" id="btnPlayPause" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs shadow-lg shadow-emerald-500/20 transition-all">
+                            <svg id="iconPlay" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <svg id="iconPause" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                            <span id="playPauseLabel">Play</span>
+                        </button>
+
+                        <button onclick="stepFrame(1)" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all" title="Next Frame (+1)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Center: Key P-Position Checkpoint Jump Buttons -->
+                    <div class="flex flex-wrap items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        <button onclick="jumpToCheckpoint('P1')" id="cp-P1" class="cp-btn px-2 py-1 rounded-lg text-[11px] font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition-all">P1 Address</button>
+                        <button onclick="jumpToCheckpoint('P2')" id="cp-P2" class="cp-btn px-2 py-1 rounded-lg text-[11px] font-mono font-medium text-slate-400 hover:text-white transition-all">P2 Takeaway</button>
+                        <button onclick="jumpToCheckpoint('P4')" id="cp-P4" class="cp-btn px-2 py-1 rounded-lg text-[11px] font-mono font-medium text-slate-400 hover:text-white transition-all">P4 Top</button>
+                        <button onclick="jumpToCheckpoint('P6')" id="cp-P6" class="cp-btn px-2 py-1 rounded-lg text-[11px] font-mono font-medium text-slate-400 hover:text-white transition-all">P6 Delivery</button>
+                        <button onclick="jumpToCheckpoint('P7')" id="cp-P7" class="cp-btn px-2 py-1 rounded-lg text-[11px] font-mono font-medium text-slate-400 hover:text-white transition-all">P7 Impact</button>
+                        <button onclick="jumpToCheckpoint('P10')" id="cp-P10" class="cp-btn px-2 py-1 rounded-lg text-[11px] font-mono font-medium text-slate-400 hover:text-white transition-all">P10 Finish</button>
+                    </div>
+
+                    <!-- Right: Playback Speed Selector -->
+                    <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        <span class="text-[10px] font-mono text-slate-500 px-1.5">SPEED</span>
+                        <button onclick="setPlaybackSpeed(0.1)" id="spd-0.1" class="spd-btn px-2 py-1 rounded-lg text-[11px] font-mono text-slate-400 hover:text-white">0.1x</button>
+                        <button onclick="setPlaybackSpeed(0.25)" id="spd-0.25" class="spd-btn px-2 py-1 rounded-lg text-[11px] font-mono text-slate-400 hover:text-white">0.25x</button>
+                        <button onclick="setPlaybackSpeed(0.5)" id="spd-0.5" class="spd-btn px-2 py-1 rounded-lg text-[11px] font-mono bg-slate-800 text-emerald-400 font-semibold">0.5x</button>
+                        <button onclick="setPlaybackSpeed(1.0)" id="spd-1" class="spd-btn px-2 py-1 rounded-lg text-[11px] font-mono text-slate-400 hover:text-white">1.0x</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Swing Metrics Dashboard & AI Diagnostic Coach (4 cols on desktop) -->
+        <div class="lg:col-span-4 flex flex-col gap-4">
+            
+            <!-- Swing Profile Simulator Selector (Lets user test different swing flaws on the demo model) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Kinematic Simulation Profile</span>
+                    <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">Interactive</span>
+                </div>
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button onclick="setSwingProfile('ott')" id="prof-ott" class="prof-btn py-2 px-2 rounded-xl text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition-all text-center">
+                        Over-the-Top
+                    </button>
+                    <button onclick="setSwingProfile('early-ext')" id="prof-early-ext" class="prof-btn py-2 px-2 rounded-xl text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700 hover:text-white transition-all text-center">
+                        Early Extension
+                    </button>
+                    <button onclick="setSwingProfile('tour-pro')" id="prof-tour-pro" class="prof-btn py-2 px-2 rounded-xl text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700 hover:text-white transition-all text-center">
+                        Tour Neutral
+                    </button>
+                </div>
+            </div>
+
+            <!-- Swing Metrics & Diagnostic Breakdown Panel -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3.5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        <h2 class="text-sm font-bold text-white">Kinematic Telemetry</h2>
+                    </div>
+                    <span class="text-[11px] font-mono text-slate-400">Live Frame Data</span>
+                </div>
+
+                <!-- 2x2 Metric Cards Grid -->
+                <div class="grid grid-cols-2 gap-2.5">
+                    <!-- Tempo Ratio -->
+                    <div class="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
+                        <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                            <span>Tempo Ratio</span>
+                            <span class="text-emerald-400 font-mono">Ideal 3.0:1</span>
+                        </div>
+                        <div class="text-lg font-mono font-bold text-white" id="metricTempo">2.6 : 1</div>
+                        <div class="text-[10px] text-amber-400 mt-0.5" id="metricTempoNote">Slightly quick transition</div>
+                    </div>
+
+                    <!-- Spine Angle Maintenance -->
+                    <div class="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
+                        <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                            <span>Spine Tilt Δ</span>
+                            <span class="text-emerald-400 font-mono">±2° Tol</span>
+                        </div>
+                        <div class="text-lg font-mono font-bold text-white" id="metricSpine">36° → 31°</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5" id="metricSpineNote">-5° posture lift at P7</div>
+                    </div>
+
+                    <!-- Hip / Shoulder X-Factor -->
+                    <div class="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
+                        <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                            <span>Hip / Shoulder</span>
+                            <span class="text-cyan-400 font-mono">P4 Peak</span>
+                        </div>
+                        <div class="text-lg font-mono font-bold text-white" id="metricRotation">42° / 88°</div>
+                        <div class="text-[10px] text-emerald-400 mt-0.5" id="metricRotationNote">46° X-Factor Separation</div>
+                    </div>
+
+                    <!-- Club Path Indicator -->
+                    <div class="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
+                        <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                            <span>Club Path</span>
+                            <span class="text-slate-400 font-mono">P6→P7</span>
+                        </div>
+                        <div class="text-lg font-mono font-bold text-amber-400" id="metricPath">-3.4° Out-In</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5" id="metricPathNote">Steep shaft plane</div>
+                    </div>
+                </div>
+
+                <!-- Dynamic Coaching Cue Box -->
+                <div class="bg-emerald-500/10 border border-emerald-500/25 rounded-xl p-3 flex items-start gap-2.5">
+                    <div class="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold text-emerald-300" id="liveTipTitle">Checkpoint P1 Address Focus</div>
+                        <p class="text-[11px] text-slate-300 leading-relaxed mt-0.5" id="liveTipBody">
+                            Athletic knee flex with armpits aligned over the balls of the feet. Draw a line through the shaft to establish your primary swing plane reference.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Swing Coach & P-Position Diagnostic Wizard -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex-1 flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <h2 class="text-sm font-bold text-white">AI Swing Coach & Drill Engine</h2>
+                    </div>
+                    <button onclick="toggleApiKeyModal()" class="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 underline">
+                        Gemini API
+                    </button>
+                </div>
+
+                <!-- Optional Gemini API Key Drawer (Hidden by default) -->
+                <div id="apiKeyDrawer" class="hidden bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
+                    <label class="text-[11px] text-slate-400">Optional Google Gemini API Key (for live LLM swing analysis):</label>
+                    <div class="flex gap-1.5">
+                        <input type="password" id="geminiApiKeyInput" placeholder="AIzaSy..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-emerald-500">
+                        <button onclick="saveApiKey()" class="px-3 py-1 rounded-lg bg-emerald-500 text-slate-950 font-semibold text-xs">Save</button>
+                    </div>
+                </div>
+
+                <!-- Interactive P-Position Observation Checklist -->
+                <div class="flex flex-col gap-2">
+                    <div class="text-[11px] text-slate-400">Log observed checkpoints to generate a custom drill plan:</div>
+                    
+                    <div class="grid grid-cols-1 gap-1.5 text-xs">
+                        <label class="flex items-center justify-between bg-slate-950/70 hover:bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 cursor-pointer transition-colors">
+                            <span class="text-slate-300"><strong class="text-emerald-400 font-mono">P2</strong> Clubhead rolls inside hands</span>
+                            <input type="checkbox" id="chk-p2" class="accent-emerald-500 w-4 h-4 rounded">
+                        </label>
+                        
+                        <label class="flex items-center justify-between bg-slate-950/70 hover:bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 cursor-pointer transition-colors">
+                            <span class="text-slate-300"><strong class="text-emerald-400 font-mono">P4</strong> Trail elbow flies / across the line</span>
+                            <input type="checkbox" id="chk-p4" checked class="accent-emerald-500 w-4 h-4 rounded">
+                        </label>
+
+                        <label class="flex items-center justify-between bg-slate-950/70 hover:bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 cursor-pointer transition-colors">
+                            <span class="text-slate-300"><strong class="text-emerald-400 font-mono">P6</strong> Shaft steepens (Over-the-Top)</span>
+                            <input type="checkbox" id="chk-p6" checked class="accent-emerald-500 w-4 h-4 rounded">
+                        </label>
+
+                        <label class="flex items-center justify-between bg-slate-950/70 hover:bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 cursor-pointer transition-colors">
+                            <span class="text-slate-300"><strong class="text-emerald-400 font-mono">P7</strong> Hips thrust toward ball (Early Ext.)</span>
+                            <input type="checkbox" id="chk-p7" class="accent-emerald-500 w-4 h-4 rounded">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Generate Prescription Button -->
+                <button onclick="generateCoachPrescription()" id="btnGenerateCoach" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/15 transition-all flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                    <span>Generate Personalized Drill Prescription</span>
+                </button>
+
+                <!-- AI Output Card -->
+                <div id="coachOutputBox" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 leading-relaxed max-h-48 overflow-y-auto">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-mono text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">Diagnostic Report Ready</span>
+                        <span class="font-mono text-[10px] text-slate-500">Priority: Transition</span>
+                    </div>
+                    <p class="text-slate-300">
+                        <strong class="text-white">Primary Fault:</strong> Steep transition from P4 to P6 causing an Out-to-In club path (-3.4°).<br>
+                        <strong class="text-emerald-400">Prescribed Drill:</strong> <em>Headcover Under Trail Arm + Pump Drill</em>. Place a headcover under your trail armpit and rehearse dropping the hands vertically from P4 to P6 before rotating through impact.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * SWINGLAB PRO — BIOMECHANICAL GOLF SWING ANALYZER ENGINE
+         * Pure client-side HTML5 Canvas + Kinematic 2D Skeleton Simulation + Overlay Drawing Suite
+         */
+
+        // ==========================================
+        // 1. GLOBAL APPLICATION STATE
+        // ==========================================
+        const TOTAL_FRAMES = 120; // 2.00 seconds at 60fps equivalent
+        const CHECKPOINTS = {
+            P1: { frame: 0,   label: 'P1 Address',   tipTitle: 'P1 Address — Posture & Alignment', tip: 'Verify athletic knee flex, neutral spine tilt (~36°), and arms hanging naturally beneath the shoulders.' },
+            P2: { frame: 24,  label: 'P2 Takeaway',  tipTitle: 'P2 Takeaway — One-Piece Move', tip: 'Clubshaft should be parallel to the ground and toe-line, with the clubhead covering the hands in DTL view.' },
+            P4: { frame: 58,  label: 'P4 Top',       tipTitle: 'P4 Top of Backswing — Depth & Width', tip: 'Lead arm parallel to shoulder plane (~88° turn). Maintain trail knee flex and avoid overswinging.' },
+            P6: { frame: 82,  label: 'P6 Delivery',  tipTitle: 'P6 Delivery — Shallowing the Shaft', tip: 'Crucial transition checkpoint: shaft should bisect the trail forearm (on-plane) rather than steepening above the shoulder.' },
+            P7: { frame: 92,  label: 'P7 Impact',    tipTitle: 'P7 Impact — Forward Shaft Lean', tip: 'Hips open ~35-40° to target, lead wrist flat/bowed, maintaining original spine angle without early extension.' },
+            P10:{ frame: 119, label: 'P10 Finish',   tipTitle: 'P10 Finish — Balanced Extension', tip: '90%+ weight posted onto lead heel, belt buckle facing target, and balanced hold for 3 seconds.' }
+        };
+
+        const state = {
+            sourceMode: 'demo-dtl',   // 'demo-dtl' | 'demo-fo' | 'video'
+            swingProfile: 'ott',      // 'ott' (Over-the-Top) | 'early-ext' (Early Extension) | 'tour-pro' (Tour Neutral)
+            compareMode: false,
+            autoGuides: true,
+            isPlaying: false,
+            currentFrame: 0,
+            playbackSpeed: 0.5,
+            lastFrameTime: 0,
+            
+            // Drawing Tool State
+            activeTool: 'line',       // 'line' | 'circle' | 'angle'
+            drawColor: '#facc15',
+            shapes: [],               // Committed shapes
+            tempShape: null,          // Currently dragging shape
+            anglePoints: [],          // 3-point angle accumulator
+            isDrawing: false,
+
+            // Optional Gemini API Key
+            geminiApiKey: ''
+        };
+
+        // DOM Elements
+        const mainCanvas = document.getElementById('mainCanvas');
+        const mainCtx = mainCanvas.getContext('2d');
+        const proCanvas = document.getElementById('proCanvas');
+        const proCtx = proCanvas.getContext('2d');
+        const userVideo = document.getElementById('userVideo');
+        const timelineSlider = document.getElementById('timelineSlider');
+
+        // ==========================================
+        // 2. INITIALIZATION & RESIZE HANDLING
+        // ==========================================
+        function resizeCanvases() {
+            const dpr = window.devicePixelRatio || 1;
+            
+            const primaryPane = document.getElementById('primaryPane');
+            if (primaryPane) {
+                const rect = primaryPane.getBoundingClientRect();
+                mainCanvas.width = rect.width * dpr;
+                mainCanvas.height = rect.height * dpr;
+                mainCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            const proPane = document.getElementById('proComparePane');
+            if (proPane && !proPane.classList.contains('hidden')) {
+                const rectPro = proPane.getBoundingClientRect();
+                proCanvas.width = rectPro.width * dpr;
+                proCanvas.height = rectPro.height * dpr;
+                proCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            renderAll();
+        }
+
+        window.addEventListener('resize', resizeCanvases);
+        window.onload = function() {
+            resizeCanvases();
+            updateMetricsPanel();
+            updateCheckpointUI();
+            requestAnimationFrame(animationLoop);
+        };
+
+        // ==========================================
+        // 3. PLAYBACK & TRANSPORT CONTROLS
+        // ==========================================
+        function animationLoop(timestamp) {
+            if (!state.lastFrameTime) state.lastFrameTime = timestamp;
+            const elapsed = timestamp - state.lastFrameTime;
+
+            // Base frame interval = 16.67ms (60fps) scaled by playbackSpeed
+            const targetInterval = 16.67 / state.playbackSpeed;
+
+            if (state.isPlaying && elapsed >= targetInterval) {
+                state.lastFrameTime = timestamp;
+                
+                if (state.sourceMode === 'video' && userVideo.duration) {
+                    // Sync frame index from HTML5 video currentTime
+                    const progress = userVideo.currentTime / userVideo.duration;
+                    state.currentFrame = Math.min(TOTAL_FRAMES - 1, Math.floor(progress * TOTAL_FRAMES));
+                    timelineSlider.value = state.currentFrame;
+                } else {
+                    state.currentFrame = (state.currentFrame + 1) % TOTAL_FRAMES;
+                    timelineSlider.value = state.currentFrame;
+                }
+                updateCheckpointUI();
+            }
+
+            renderAll();
+            requestAnimationFrame(animationLoop);
+        }
+
+        function togglePlay() {
+            state.isPlaying = !state.isPlaying;
+            const iconPlay = document.getElementById('iconPlay');
+            const iconPause = document.getElementById('iconPause');
+            const label = document.getElementById('playPauseLabel');
+
+            if (state.isPlaying) {
+                iconPlay.classList.add('hidden');
+                iconPause.classList.remove('hidden');
+                label.textContent = 'Pause';
+                if (state.sourceMode === 'video') {
+                    userVideo.playbackRate = state.playbackSpeed;
+                    userVideo.play().catch(() => {});
+                }
+            } else {
+                iconPlay.classList.remove('hidden');
+                iconPause.classList.add('hidden');
+                label.textContent = 'Play';
+                if (state.sourceMode === 'video') {
+                    userVideo.pause();
+                }
+            }
+        }
+
+        function handleScrub(val) {
+            state.currentFrame = parseInt(val, 10);
+            if (state.sourceMode === 'video' && userVideo.duration) {
+                userVideo.currentTime = (state.currentFrame / (TOTAL_FRAMES - 1)) * userVideo.duration;
+            }
+            updateCheckpointUI();
+            renderAll();
+        }
+
+        function stepFrame(delta) {
+            if (state.isPlaying) togglePlay();
+            state.currentFrame = (state.currentFrame + delta + TOTAL_FRAMES) % TOTAL_FRAMES;
+            timelineSlider.value = state.currentFrame;
+            if (state.sourceMode === 'video' && userVideo.duration) {
+                userVideo.currentTime = (state.currentFrame / (TOTAL_FRAMES - 1)) * userVideo.duration;
+            }
+            updateCheckpointUI();
+            renderAll();
+        }
+
+        function jumpToCheckpoint(cpKey) {
+            if (state.isPlaying) togglePlay();
+            const cp = CHECKPOINTS[cpKey];
+            if (!cp) return;
+            state.currentFrame = cp.frame;
+            timelineSlider.value = state.currentFrame;
+            if (state.sourceMode === 'video' && userVideo.duration) {
+                userVideo.currentTime = (state.currentFrame / (TOTAL_FRAMES - 1)) * userVideo.duration;
+            }
+            updateCheckpointUI();
+            renderAll();
+        }
+
+        function setPlaybackSpeed(speed) {
+            state.playbackSpeed = speed;
+            if (state.sourceMode === 'video') {
+                userVideo.playbackRate = speed;
+            }
+            document.querySelectorAll('.spd-btn').forEach(btn => {
+                btn.className = 'spd-btn px-2 py-1 rounded-lg text-[11px] font-mono text-slate-400 hover:text-white';
+            });
+            const activeBtn = document.getElementById(`spd-${speed}`);
+            if (activeBtn) {
+                activeBtn.className = 'spd-btn px-2 py-1 rounded-lg text-[11px] font-mono bg-slate-800 text-emerald-400 font-semibold';
+            }
+        }
+
+        function getCurrentPhaseInfo(frame) {
+            if (frame < 15) return { key: 'P1', ...CHECKPOINTS.P1 };
+            if (frame < 40) return { key: 'P2', ...CHECKPOINTS.P2 };
+            if (frame < 72) return { key: 'P4', ...CHECKPOINTS.P4 };
+            if (frame < 88) return { key: 'P6', ...CHECKPOINTS.P6 };
+            if (frame < 105) return { key: 'P7', ...CHECKPOINTS.P7 };
+            return { key: 'P10', ...CHECKPOINTS.P10 };
+        }
+
+        function updateCheckpointUI() {
+            const phase = getCurrentPhaseInfo(state.currentFrame);
+            const pct = Math.round((state.currentFrame / (TOTAL_FRAMES - 1)) * 100);
+
+            document.getElementById('hudPhaseLabel').textContent = phase.label;
+            document.getElementById('hudFrameCounter').textContent = 
+                `${String(state.currentFrame + 1).padStart(3, '0')}/${TOTAL_FRAMES}`;
+            document.getElementById('timelinePercentLabel').textContent = 
+                `Position: ${phase.label} (${pct}%)`;
+
+            // Highlight active P-button
+            document.querySelectorAll('.cp-btn').forEach(btn => {
+                btn.className = 'cp-btn px-2 py-1 rounded-lg text-[11px] font-mono font-medium text-slate-400 hover:text-white transition-all';
+            });
+            const activeCpBtn = document.getElementById(`cp-${phase.key}`);
+            if (activeCpBtn) {
+                activeCpBtn.className = 'cp-btn px-2 py-1 rounded-lg text-[11px] font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition-all';
+            }
+
+            // Update contextual coaching tip
+            document.getElementById('liveTipTitle').textContent = phase.tipTitle;
+            document.getElementById('liveTipBody').textContent = phase.tip;
+        }
+
+        // ==========================================
+        // 4. SOURCE MODES & SIDE-BY-SIDE COMPARE
+        // ==========================================
+        function setSourceMode(mode) {
+            state.sourceMode = mode;
+            
+            const btnDtl = document.getElementById('btn-demo-dtl');
+            const btnFo = document.getElementById('btn-demo-fo');
+            const sourceLabel = document.getElementById('primarySourceLabel');
+
+            btnDtl.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-white';
+            btnFo.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-white';
+
+            if (mode === 'demo-dtl') {
+                btnDtl.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-emerald-500 text-slate-950 shadow-sm';
+                sourceLabel.textContent = 'SUBJECT: DEMO SWING (DTL)';
+                userVideo.pause();
+            } else if (mode === 'demo-fo') {
+                btnFo.className = 'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-emerald-500 text-slate-950 shadow-sm';
+                sourceLabel.textContent = 'SUBJECT: DEMO SWING (FACE-ON)';
+                userVideo.pause();
+            } else if (mode === 'video') {
+                sourceLabel.textContent = 'SUBJECT: CUSTOM UPLOADED VIDEO';
+            }
+
+            renderAll();
+        }
+
+        function handleVideoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const url = URL.createObjectURL(file);
+            userVideo.src = url;
+            userVideo.onloadedmetadata = () => {
+                setSourceMode('video');
+                document.getElementById('totalDurationLabel').textContent = `${userVideo.duration.toFixed(2)}s`;
+                state.currentFrame = 0;
+                timelineSlider.value = 0;
+                showToast(`Loaded "${file.name}" (${userVideo.duration.toFixed(1)}s)`);
+                renderAll();
+            };
+        }
+
+        function toggleCompareMode() {
+            state.compareMode = !state.compareMode;
+            const proPane = document.getElementById('proComparePane');
+            const canvasGrid = document.getElementById('canvasGrid');
+            const statusText = document.getElementById('compareStatusText');
+            const btn = document.getElementById('btnCompareToggle');
+
+            if (state.compareMode) {
+                proPane.classList.remove('hidden');
+                canvasGrid.className = 'w-full h-full grid grid-cols-1 md:grid-cols-2';
+                statusText.textContent = 'ON';
+                statusText.className = 'text-cyan-400';
+                btn.classList.add('border-cyan-500/50', 'bg-cyan-500/10');
+                showToast('Side-by-Side Pro Tour Reference Activated');
+            } else {
+                proPane.classList.add('hidden');
+                canvasGrid.className = 'w-full h-full grid grid-cols-1';
+                statusText.textContent = 'OFF';
+                statusText.className = 'text-slate-400';
+                btn.classList.remove('border-cyan-500/50', 'bg-cyan-500/10');
+            }
+
+            setTimeout(resizeCanvases, 20);
+        }
+
+        function toggleAutoGuides() {
+            state.autoGuides = !state.autoGuides;
+            const btn = document.getElementById('btnAutoGuides');
+            if (state.autoGuides) {
+                btn.textContent = 'Auto-Planes: ON';
+                btn.className = 'px-2.5 py-1.5 rounded-xl text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all';
+            } else {
+                btn.textContent = 'Auto-Planes: OFF';
+                btn.className = 'px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700 hover:text-white transition-all';
+            }
+            renderAll();
+        }
+
+        // ==========================================
+        // 5. BIOMECHANICAL 2D GOLFER KINEMATIC ENGINE
+        // ==========================================
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        function smoothstep(edge0, edge1, x) {
+            const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+            return t * t * (3 - 2 * t);
+        }
+
+        /**
+         * Computes 2D joint coordinates for either Down-the-Line (DTL) or Face-On (FO)
+         * normalized to canvas width/height, incorporating swing fault profiles.
+         */
+        function computeGolferPose(frame, viewType, profile) {
+            // Normalize swing timeline into Backswing (0 -> 0.48), Downswing (0.48 -> 0.77), Follow-Through (0.77 -> 1.0)
+            const t = frame / (TOTAL_FRAMES - 1);
+            
+            // Phase progress values
+            const backswing = smoothstep(0.0, 0.48, t);
+            const downswing = smoothstep(0.48, 0.77, t);
+            const follow = smoothstep(0.77, 1.0, t);
+
+            if (viewType === 'dtl') {
+                // DOWN-THE-LINE VIEW (Golfer facing right toward ball)
+                const groundY = 0.86;
+                const ankle = { x: 0.36, y: groundY };
+                
+                // Early extension thrusts pelvis forward (right) during downswing
+                const thrustX = (profile === 'early-ext') ? (downswing * 0.055 - follow * 0.02) : (downswing * 0.012);
+                const knee = { x: 0.39 + thrustX * 0.6, y: 0.68 };
+                const hip = { x: 0.33 + thrustX, y: 0.51 };
+
+                // Spine lift during downswing if early extending
+                const spineLift = (profile === 'early-ext') ? downswing * 0.055 : downswing * 0.01;
+                const shoulder = { 
+                    x: 0.43 + thrustX * 0.4 - backswing * 0.02 + downswing * 0.02, 
+                    y: 0.33 - spineLift 
+                };
+                const head = { 
+                    x: shoulder.x + 0.045, 
+                    y: shoulder.y - 0.085 
+                };
+
+                // Hand path & club shaft kinematics
+                let handX, handY, clubAngleRad;
+
+                if (t <= 0.48) {
+                    // Backswing P1 -> P4
+                    const b = backswing;
+                    handX = lerp(0.47, 0.31, b);
+                    handY = lerp(0.51, 0.21, b);
+                    // Shaft rotates from address (~52 deg) up to vertical/laid-off at top
+                    clubAngleRad = lerp(0.92, -0.35, b);
+                } else if (t <= 0.77) {
+                    // Downswing P4 -> P7 (Impact)
+                    const d = downswing;
+                    // Over-the-Top casts hands OUT toward ball line early in transition!
+                    const ottOutward = (profile === 'ott') ? Math.sin(d * Math.PI) * 0.095 : -Math.sin(d * Math.PI) * 0.025;
+                    handX = lerp(0.31, 0.48, d) + ottOutward;
+                    handY = lerp(0.21, 0.50, d) - (profile === 'ott' ? Math.sin(d * Math.PI) * 0.03 : 0);
+                    clubAngleRad = lerp(-0.35, 0.90, d);
+                } else {
+                    // Follow-through P7 -> P10
+                    const f = follow;
+                    handX = lerp(0.48, 0.32, f);
+                    handY = lerp(0.50, 0.22, f);
+                    clubAngleRad = lerp(0.90, 2.75, f);
+                }
+
+                const hands = { x: handX, y: handY };
+                // Elbow trails behind hands
+                const elbow = {
+                    x: lerp(shoulder.x, hands.x, 0.52) - 0.035 + (profile === 'ott' && t > 0.48 && t < 0.77 ? 0.04 : 0),
+                    y: lerp(shoulder.y, hands.y, 0.52) + 0.03
+                };
+
+                const clubLen = 0.27;
+                const clubHead = {
+                    x: hands.x + Math.cos(clubAngleRad) * clubLen,
+                    y: hands.y + Math.sin(clubAngleRad) * clubLen
+                };
+
+                const ball = { x: 0.63, y: groundY - 0.008 };
+
+                return {
+                    view: 'dtl',
+                    groundY, ankle, knee, hip, shoulder, head, elbow, hands, clubHead, ball,
+                    addressPlaneStart: { x: 0.63, y: groundY },
+                    addressPlaneEnd: { x: 0.26, y: 0.28 }
+                };
+
+            } else {
+                // FACE-ON VIEW (Golfer facing camera, target is to the LEFT)
+                const groundY = 0.86;
+                const leadAnkle = { x: 0.42, y: groundY };   // Left foot (target side)
+                const trailAnkle = { x: 0.58, y: groundY };  // Right foot
+
+                // Lateral hip sway in backswing, slide + rotation in downswing
+                const hipShiftX = (backswing * 0.025) - (downswing * 0.065) - (follow * 0.02);
+                const leadHip = { x: 0.44 + hipShiftX, y: 0.52 };
+                const trailHip = { x: 0.56 + hipShiftX, y: 0.52 };
+                const pelvisCenter = { x: (leadHip.x + trailHip.x) / 2, y: 0.52 };
+
+                const leadKnee = { x: lerp(leadAnkle.x, leadHip.x, 0.52) + backswing * 0.02 - downswing * 0.02, y: 0.69 };
+                const trailKnee = { x: lerp(trailAnkle.x, trailHip.x, 0.52) + backswing * 0.01 - downswing * 0.03, y: 0.69 };
+
+                // Torso coil & secondary axis tilt at impact
+                const shoulderShiftX = (backswing * 0.045) - (downswing * 0.03) + (follow * 0.01);
+                const leadShoulder = { 
+                    x: 0.42 + shoulderShiftX + backswing * 0.08 - downswing * 0.09, 
+                    y: 0.33 + backswing * 0.03 - downswing * 0.04 
+                };
+                const trailShoulder = { 
+                    x: 0.58 + shoulderShiftX - backswing * 0.04 + downswing * 0.02, 
+                    y: 0.33 - backswing * 0.02 + downswing * 0.04 
+                };
+                const neck = { x: (leadShoulder.x + trailShoulder.x) / 2, y: 0.32 };
+                const head = { x: 0.51 + backswing * 0.015 - follow * 0.03, y: 0.22 };
+
+                // Hands & Club in Face-On Arc
+                let handX, handY, clubAngleRad;
+                if (t <= 0.48) {
+                    const b = backswing;
+                    handX = lerp(0.47, 0.66, b);
+                    handY = lerp(0.52, 0.21, b);
+                    clubAngleRad = lerp(1.68, 0.15, b);
+                } else if (t <= 0.77) {
+                    const d = downswing;
+                    // Casting / early release loses lag angle in OTT profile
+                    const lagBonus = (profile === 'tour-pro') ? Math.sin(d * Math.PI) * 0.55 : Math.sin(d * Math.PI) * 0.15;
+                    handX = lerp(0.66, 0.43, d);
+                    handY = lerp(0.21, 0.52, d);
+                    clubAngleRad = lerp(0.15, 1.72, d) - lagBonus;
+                } else {
+                    const f = follow;
+                    handX = lerp(0.43, 0.56, f);
+                    handY = lerp(0.52, 0.20, f);
+                    clubAngleRad = lerp(1.72, 3.35, f);
+                }
+
+                const hands = { x: handX, y: handY };
+                const leadElbow = { x: lerp(leadShoulder.x, hands.x, 0.5), y: lerp(leadShoulder.y, hands.y, 0.5) };
+                const trailElbow = { x: lerp(trailShoulder.x, hands.x, 0.5) + 0.02, y: lerp(trailShoulder.y, hands.y, 0.5) + 0.02 };
+
+                const clubLen = 0.29;
+                const clubHead = {
+                    x: hands.x + Math.cos(clubAngleRad) * clubLen,
+                    y: hands.y + Math.sin(clubAngleRad) * clubLen
+                };
+
+                const ball = { x: 0.45, y: groundY - 0.008 };
+
+                return {
+                    view: 'fo',
+                    groundY, leadAnkle, trailAnkle, leadKnee, trailKnee,
+                    leadHip, trailHip, pelvisCenter, leadShoulder, trailShoulder,
+                    neck, head, leadElbow, trailElbow, hands, clubHead, ball
+                };
+            }
+        }
+
+        /**
+         * Renders the biomechanical skeleton, club shaft, ball trajectory arc, and reference guides.
+         */
+        function drawGolferScene(ctx, w, h, frame, viewType, profile, isBenchmark = false) {
+            ctx.clearRect(0, 0, w, h);
+
+            // Subtle vignette & turf ground line
+            const pose = computeGolferPose(frame, viewType, profile);
+            const gy = pose.groundY * h;
+
+            // Turf gradient
+            const turfGrad = ctx.createLinearGradient(0, gy, 0, h);
+            turfGrad.addColorStop(0, isBenchmark ? 'rgba(34, 211, 238, 0.14)' : 'rgba(16, 185, 129, 0.16)');
+            turfGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)');
+            ctx.fillStyle = turfGrad;
+            ctx.fillRect(0, gy, w, h - gy);
+
+            // Ground horizon line
+            ctx.strokeStyle = isBenchmark ? 'rgba(34, 211, 238, 0.4)' : 'rgba(16, 185, 129, 0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(0, gy);
+            ctx.lineTo(w, gy);
+            ctx.stroke();
+
+            // Draw Auto-Biomechanical Reference Planes if enabled
+            if (state.autoGuides) {
+                ctx.save();
+                ctx.setLineDash([6, 6]);
+                ctx.lineWidth = 1.5;
+
+                if (viewType === 'dtl') {
+                    // Primary Shaft Swing Plane Cone
+                    ctx.strokeStyle = isBenchmark ? 'rgba(34, 211, 238, 0.45)' : 'rgba(250, 204, 21, 0.45)';
+                    ctx.beginPath();
+                    ctx.moveTo(pose.addressPlaneStart.x * w, pose.addressPlaneStart.y * h);
+                    ctx.lineTo(pose.addressPlaneEnd.x * w, pose.addressPlaneEnd.y * h);
+                    ctx.stroke();
+
+                    // Shoulder Plane Line
+                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+                    ctx.beginPath();
+                    ctx.moveTo(pose.ball.x * w, pose.ball.y * h - 40);
+                    ctx.lineTo(0.24 * w, 0.14 * h);
+                    ctx.stroke();
+
+                    // Tush Line (Vertical glute reference for Early Extension)
+                    ctx.strokeStyle = 'rgba(244, 114, 182, 0.45)';
+                    ctx.beginPath();
+                    ctx.moveTo(0.32 * w, 0.25 * h);
+                    ctx.lineTo(0.32 * w, gy);
+                    ctx.stroke();
+                } else {
+                    // Face-On Sway Box Lines
+                    ctx.strokeStyle = 'rgba(34, 211, 238, 0.35)';
+                    ctx.beginPath();
+                    ctx.moveTo(0.41 * w, 0.22 * h);
+                    ctx.lineTo(0.41 * w, gy);
+                    ctx.moveTo(0.59 * w, 0.22 * h);
+                    ctx.lineTo(0.59 * w, gy);
+                    ctx.stroke();
+                }
+
+                // Head Stability Box
+                ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)';
+                ctx.beginPath();
+                const headRefX = (viewType === 'dtl') ? 0.475 * w : 0.51 * w;
+                const headRefY = (viewType === 'dtl') ? 0.245 * h : 0.22 * h;
+                ctx.arc(headRefX, headRefY, Math.min(w, h) * 0.055, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Draw Hand Path Trace Ribbon (Shows path up to current frame)
+            ctx.save();
+            ctx.beginPath();
+            for (let f = 0; f <= frame; f += 2) {
+                const p = computeGolferPose(f, viewType, profile);
+                const px = p.hands.x * w;
+                const py = p.hands.y * h;
+                if (f === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.strokeStyle = isBenchmark ? 'rgba(34, 211, 238, 0.65)' : 'rgba(16, 185, 129, 0.75)';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+            ctx.restore();
+
+            // Helper to draw bone segments
+            const primaryLimbColor = isBenchmark ? '#22d3ee' : '#10b981';
+            const secondaryLimbColor = isBenchmark ? '#0891b2' : '#059669';
+
+            function drawSegment(p1, p2, color, width = 6) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(p1.x * w, p1.y * h);
+                ctx.lineTo(p2.x * w, p2.y * h);
+                ctx.stroke();
+            }
+
+            function drawJoint(p, radius = 5, fill = '#f8fafc') {
+                ctx.fillStyle = fill;
+                ctx.beginPath();
+                ctx.arc(p.x * w, p.y * h, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (viewType === 'dtl') {
+                // Legs & Spine
+                drawSegment(pose.ankle, pose.knee, secondaryLimbColor, 7);
+                drawSegment(pose.knee, pose.hip, primaryLimbColor, 8);
+                drawSegment(pose.hip, pose.shoulder, '#f8fafc', 9);
+
+                // Golf Club Shaft & Clubhead
+                drawSegment(pose.hands, pose.clubHead, '#facc15', 3.5);
+                ctx.fillStyle = '#e2e8f0';
+                ctx.beginPath();
+                ctx.arc(pose.clubHead.x * w, pose.clubHead.y * h, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Lead/Trail Arm
+                drawSegment(pose.shoulder, pose.elbow, primaryLimbColor, 6);
+                drawSegment(pose.elbow, pose.hands, primaryLimbColor, 5.5);
+
+                // Head
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = primaryLimbColor;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(pose.head.x * w, pose.head.y * h, Math.min(w, h) * 0.036, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Joint Telemetry Nodes
+                [pose.ankle, pose.knee, pose.hip, pose.shoulder, pose.elbow, pose.hands].forEach(j => drawJoint(j, 4.5));
+
+            } else {
+                // Face-On Skeleton
+                drawSegment(pose.leadAnkle, pose.leadKnee, primaryLimbColor, 7);
+                drawSegment(pose.leadKnee, pose.leadHip, primaryLimbColor, 8);
+                drawSegment(pose.trailAnkle, pose.trailKnee, secondaryLimbColor, 7);
+                drawSegment(pose.trailKnee, pose.trailHip, secondaryLimbColor, 8);
+
+                // Pelvis & Torso
+                drawSegment(pose.leadHip, pose.trailHip, '#94a3b8', 7);
+                drawSegment(pose.pelvisCenter, pose.neck, '#f8fafc', 9);
+                drawSegment(pose.leadShoulder, pose.trailShoulder, '#e2e8f0', 7);
+
+                // Golf Club
+                drawSegment(pose.hands, pose.clubHead, '#facc15', 3.5);
+                ctx.fillStyle = '#e2e8f0';
+                ctx.beginPath();
+                ctx.arc(pose.clubHead.x * w, pose.clubHead.y * h, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Arms
+                drawSegment(pose.trailShoulder, pose.trailElbow, secondaryLimbColor, 5.5);
+                drawSegment(pose.trailElbow, pose.hands, secondaryLimbColor, 5);
+                drawSegment(pose.leadShoulder, pose.leadElbow, primaryLimbColor, 6);
+                drawSegment(pose.leadElbow, pose.hands, primaryLimbColor, 5.5);
+
+                // Head
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = primaryLimbColor;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(pose.head.x * w, pose.head.y * h, Math.min(w, h) * 0.036, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Joints
+                [pose.leadKnee, pose.trailKnee, pose.leadHip, pose.trailHip, pose.leadShoulder, pose.trailShoulder, pose.hands].forEach(j => drawJoint(j, 4));
+            }
+
+            // Golf Ball on Tee/Turf
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(255,255,255,0.6)';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(pose.ball.x * w, pose.ball.y * h, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        // ==========================================
+        // 6. MAIN RENDER PIPELINE (VIDEO/DEMO + DRAWINGS)
+        // ==========================================
+        function renderAll() {
+            const dpr = window.devicePixelRatio || 1;
+            const w = mainCanvas.width / dpr;
+            const h = mainCanvas.height / dpr;
+
+            if (state.sourceMode === 'video' && userVideo.readyState >= 2) {
+                mainCtx.clearRect(0, 0, w, h);
+                // Maintain aspect ratio fit inside canvas
+                const vw = userVideo.videoWidth || w;
+                const vh = userVideo.videoHeight || h;
+                const scale = Math.min(w / vw, h / vh);
+                const drawW = vw * scale;
+                const drawH = vh * scale;
+                const offsetX = (w - drawW) / 2;
+                const offsetY = (h - drawH) / 2;
+                mainCtx.drawImage(userVideo, offsetX, offsetY, drawW, drawH);
+            } else {
+                const viewType = (state.sourceMode === 'demo-fo') ? 'fo' : 'dtl';
+                drawGolferScene(mainCtx, w, h, state.currentFrame, viewType, state.swingProfile, false);
+            }
+
+            // Render user-drawn geometry overlays on top of mainCanvas
+            renderUserDrawings(mainCtx, w, h);
+
+            // Render Pro Tour Benchmark canvas if Compare Mode is active
+            if (state.compareMode) {
+                const pw = proCanvas.width / dpr;
+                const ph = proCanvas.height / dpr;
+                const viewType = (state.sourceMode === 'demo-fo') ? 'fo' : 'dtl';
+                drawGolferScene(proCtx, pw, ph, state.currentFrame, viewType, 'tour-pro', true);
+            }
+        }
+
+        // ==========================================
+        // 7. INTERACTIVE DRAWING & PROTRACTOR OVERLAYS
+        // ==========================================
+        function setTool(tool) {
+            state.activeTool = tool;
+            state.anglePoints = [];
+            state.tempShape = null;
+
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.className = 'tool-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-800 transition-all';
+            });
+            const activeBtn = document.getElementById(`tool-${tool}`);
+            if (activeBtn) {
+                activeBtn.className = 'tool-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition-all';
+            }
+
+            const hint = document.getElementById('toolHintPill');
+            if (tool === 'line') hint.textContent = 'Click & drag to draw a swing plane or spine line';
+            if (tool === 'circle') hint.textContent = 'Click & drag from center to draw a head stability circle';
+            if (tool === 'angle') hint.textContent = 'Click 3 points (Point A → Vertex → Point B) to measure joint angle';
+            renderAll();
+        }
+
+        function setDrawColor(hex) {
+            state.drawColor = hex;
+            const map = { '#facc15': 'color-yellow', '#22d3ee': 'color-cyan', '#f472b6': 'color-magenta', '#10b981': 'color-emerald' };
+            Object.values(map).forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('ring-2', 'ring-white', 'scale-110');
+                if (el) el.classList.add('opacity-70');
+            });
+            const active = document.getElementById(map[hex]);
+            if (active) {
+                active.classList.add('ring-2', 'ring-white', 'scale-110');
+                active.classList.remove('opacity-70');
+            }
+        }
+
+        function undoShape() {
+            if (state.anglePoints.length > 0) {
+                state.anglePoints = [];
+            } else {
+                state.shapes.pop();
+            }
+            renderAll();
+        }
+
+        function clearShapes() {
+            state.shapes = [];
+            state.anglePoints = [];
+            state.tempShape = null;
+            renderAll();
+            showToast('Cleared all canvas annotations');
+        }
+
+        function getNormalizedCoords(evt) {
+            const rect = mainCanvas.getBoundingClientRect();
+            const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+            return {
+                x: (clientX - rect.left) / rect.width,
+                y: (clientY - rect.top) / rect.height
+            };
+        }
+
+        // Mouse & Touch Event Listeners for Canvas Drawing
+        mainCanvas.addEventListener('mousedown', handlePointerDown);
+        mainCanvas.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+
+        mainCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e); }, { passive: false });
+        mainCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); handlePointerMove(e); }, { passive: false });
+        window.addEventListener('touchend', handlePointerUp);
+
+        function handlePointerDown(evt) {
+            const pt = getNormalizedCoords(evt);
+
+            if (state.activeTool === 'angle') {
+                state.anglePoints.push(pt);
+                if (state.anglePoints.length === 3) {
+                    state.shapes.push({
+                        type: 'angle',
+                        points: [...state.anglePoints],
+                        color: state.drawColor
+                    });
+                    state.anglePoints = [];
+                }
+                renderAll();
+                return;
+            }
+
+            state.isDrawing = true;
+            state.tempShape = {
+                type: state.activeTool,
+                x1: pt.x,
+                y1: pt.y,
+                x2: pt.x,
+                y2: pt.y,
+                color: state.drawColor
+            };
+        }
+
+        function handlePointerMove(evt) {
+            if (!state.isDrawing || !state.tempShape) return;
+            const pt = getNormalizedCoords(evt);
+            state.tempShape.x2 = pt.x;
+            state.tempShape.y2 = pt.y;
+            renderAll();
+        }
+
+        function handlePointerUp() {
+            if (!state.isDrawing || !state.tempShape) return;
+            state.isDrawing = false;
+
+            const dx = state.tempShape.x2 - state.tempShape.x1;
+            const dy = state.tempShape.y2 - state.tempShape.y1;
+            if (Math.hypot(dx, dy) > 0.01) {
+                state.shapes.push(state.tempShape);
+            }
+            state.tempShape = null;
+            renderAll();
+        }
+
+        function calculateAngleDegrees(pA, pVertex, pB, w, h) {
+            const ax = (pA.x - pVertex.x) * w;
+            const ay = (pA.y - pVertex.y) * h;
+            const bx = (pB.x - pVertex.x) * w;
+            const by = (pB.y - pVertex.y) * h;
+
+            const dot = ax * bx + ay * by;
+            const magA = Math.hypot(ax, ay);
+            const magB = Math.hypot(bx, by);
+            if (magA === 0 || magB === 0) return 0;
+
+            const cosTheta = Math.max(-1, Math.min(1, dot / (magA * magB)));
+            return Math.round((Math.acos(cosTheta) * 180) / Math.PI);
+        }
+
+        function renderUserDrawings(ctx, w, h) {
+            const allShapes = [...state.shapes];
+            if (state.tempShape) allShapes.push(state.tempShape);
+
+            ctx.save();
+            ctx.lineCap = 'round';
+
+            allShapes.forEach(shape => {
+                ctx.strokeStyle = shape.color;
+                ctx.fillStyle = shape.color;
+                ctx.lineWidth = 2.5;
+
+                if (shape.type === 'line') {
+                    const x1 = shape.x1 * w, y1 = shape.y1 * h;
+                    const x2 = shape.x2 * w, y2 = shape.y2 * h;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+
+                    // Endpoints
+                    [ {x: x1, y: y1}, {x: x2, y: y2} ].forEach(pt => {
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+
+                    // Angle relative to horizontal ground
+                    const deg = Math.abs(Math.round(Math.atan2(y1 - y2, x2 - x1) * 180 / Math.PI));
+                    const displayDeg = deg > 90 ? 180 - deg : deg;
+                    drawCanvasLabel(ctx, `${displayDeg}°`, (x1 + x2) / 2, (y1 + y2) / 2 - 10, shape.color);
+
+                } else if (shape.type === 'circle') {
+                    const cx = shape.x1 * w, cy = shape.y1 * h;
+                    const ex = shape.x2 * w, ey = shape.y2 * h;
+                    const r = Math.hypot(ex - cx, ey - cy);
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // Center crosshair
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                } else if (shape.type === 'angle') {
+                    const [pA, pV, pB] = shape.points;
+                    ctx.beginPath();
+                    ctx.moveTo(pA.x * w, pA.y * h);
+                    ctx.lineTo(pV.x * w, pV.y * h);
+                    ctx.lineTo(pB.x * w, pB.y * h);
+                    ctx.stroke();
+
+                    shape.points.forEach(p => {
+                        ctx.beginPath();
+                        ctx.arc(p.x * w, p.y * h, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+
+                    const deg = calculateAngleDegrees(pA, pV, pB, w, h);
+                    drawCanvasLabel(ctx, `${deg}°`, pV.x * w + 12, pV.y * h - 12, shape.color);
+                }
+            });
+
+            // Draw in-progress 3-point angle vertices
+            if (state.anglePoints.length > 0) {
+                ctx.strokeStyle = state.drawColor;
+                ctx.fillStyle = state.drawColor;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                state.anglePoints.forEach((p, idx) => {
+                    if (idx === 0) ctx.moveTo(p.x * w, p.y * h);
+                    else ctx.lineTo(p.x * w, p.y * h);
+                });
+                ctx.stroke();
+                state.anglePoints.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x * w, p.y * h, 4.5, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+
+            ctx.restore();
+        }
+
+        function drawCanvasLabel(ctx, text, x, y, color) {
+            ctx.font = '600 11px "JetBrains Mono", monospace';
+            const padX = 6;
+            const metrics = ctx.measureText(text);
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+            ctx.fillRect(x - padX, y - 11, metrics.width + padX * 2, 16);
+            ctx.fillStyle = color;
+            ctx.fillText(text, x, y);
+        }
+
+        // ==========================================
+        // 8. METRICS DASHBOARD & AI COACH DIAGNOSTICS
+        // ==========================================
+        const PROFILE_TELEMETRY = {
+            'ott': {
+                badge: 'Profile: Over-the-Top (-3.4° Out-In Path)',
+                badgeClass: 'bg-amber-500/15 backdrop-blur-md border border-amber-500/30 px-2.5 py-0.5 rounded-lg text-[10px] font-mono text-amber-300',
+                tempo: '2.6 : 1',
+                tempoNote: 'Rushed transition at P4',
+                tempoColor: 'text-amber-400',
+                spine: '36° → 31°',
+                spineNote: '-5° posture lift at P7',
+                rotation: '42° / 88°',
+                rotationNote: '46° X-Factor Separation',
+                path: '-3.4° Out-In',
+                pathNote: 'Steep shaft plane (P5–P6)',
+                pathColor: 'text-amber-400'
+            },
+            'early-ext': {
+                badge: 'Profile: Early Extension (+2.8" Pelvis Thrust)',
+                badgeClass: 'bg-rose-500/15 backdrop-blur-md border border-rose-500/30 px-2.5 py-0.5 rounded-lg text-[10px] font-mono text-rose-300',
+                tempo: '2.8 : 1',
+                tempoNote: 'Moderate tempo balance',
+                tempoColor: 'text-slate-300',
+                spine: '36° → 24°',
+                spineNote: '-12° spine loss (goat hump)',
+                rotation: '38° / 84°',
+                rotationNote: 'Pelvis stalls before P7',
+                path: '+4.8° In-Out',
+                pathNote: 'Under-plane block/hook',
+                pathColor: 'text-rose-400'
+            },
+            'tour-pro': {
+                badge: 'Profile: Tour Neutral (On-Plane Slot)',
+                badgeClass: 'bg-emerald-500/15 backdrop-blur-md border border-emerald-500/30 px-2.5 py-0.5 rounded-lg text-[10px] font-mono text-emerald-300',
+                tempo: '3.0 : 1',
+                tempoNote: 'Tour optimal 0.75s : 0.25s',
+                tempoColor: 'text-emerald-400',
+                spine: '36° → 35°',
+                spineNote: 'Maintained tush-line depth',
+                rotation: '45° / 94°',
+                rotationNote: '49° X-Factor Stretch',
+                path: '+0.8° In-Out',
+                pathNote: 'Neutral baby draw slot',
+                pathColor: 'text-emerald-400'
+            }
+        };
+
+        function setSwingProfile(profile) {
+            state.swingProfile = profile;
+            
+            document.querySelectorAll('.prof-btn').forEach(btn => {
+                btn.className = 'prof-btn py-2 px-2 rounded-xl text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700 hover:text-white transition-all text-center';
+            });
+            const active = document.getElementById(`prof-${profile}`);
+            if (active) {
+                active.className = 'prof-btn py-2 px-2 rounded-xl text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition-all text-center';
+            }
+
+            updateMetricsPanel();
+            renderAll();
+        }
+
+        function updateMetricsPanel() {
+            const data = PROFILE_TELEMETRY[state.swingProfile];
+            if (!data) return;
+
+            const badge = document.getElementById('swingFlawBadge');
+            badge.textContent = data.badge;
+            badge.className = data.badgeClass;
+
+            document.getElementById('metricTempo').textContent = data.tempo;
+            const tNote = document.getElementById('metricTempoNote');
+            tNote.textContent = data.tempoNote;
+            tNote.className = `text-[10px] mt-0.5 ${data.tempoColor}`;
+
+            document.getElementById('metricSpine').textContent = data.spine;
+            document.getElementById('metricSpineNote').textContent = data.spineNote;
+
+            document.getElementById('metricRotation').textContent = data.rotation;
+            document.getElementById('metricRotationNote').textContent = data.rotationNote;
+
+            const pVal = document.getElementById('metricPath');
+            pVal.textContent = data.path;
+            pVal.className = `text-lg font-mono font-bold ${data.pathColor}`;
+            document.getElementById('metricPathNote').textContent = data.pathNote;
+        }
+
+        function toggleApiKeyModal() {
+            const drawer = document.getElementById('apiKeyDrawer');
+            drawer.classList.toggle('hidden');
+        }
+
+        function saveApiKey() {
+            const val = document.getElementById('geminiApiKeyInput').value.trim();
+            state.geminiApiKey = val;
+            document.getElementById('apiKeyDrawer').classList.add('hidden');
+            showToast(val ? 'Gemini API Key saved for live AI coaching' : 'Cleared Gemini API Key (using local engine)');
+        }
+
+        async function generateCoachPrescription() {
+            const p2 = document.getElementById('chk-p2').checked;
+            const p4 = document.getElementById('chk-p4').checked;
+            const p6 = document.getElementById('chk-p6').checked;
+            const p7 = document.getElementById('chk-p7').checked;
+
+            const outputBox = document.getElementById('coachOutputBox');
+            const btn = document.getElementById('btnGenerateCoach');
+
+            const observations = [];
+            if (p2) observations.push('P2 inside takeaway');
+            if (p4) observations.push('P4 flying trail elbow');
+            if (p6) observations.push('P6 steep over-the-top shaft plane');
+            if (p7) observations.push('P7 early extension pelvis thrust');
+
+            // If user provided a real Gemini API key, call Gemini 2.5 Flash
+            if (state.geminiApiKey) {
+                btn.disabled = true;
+                outputBox.innerHTML = `<div class="text-emerald-400 font-mono animate-pulse">Analyzing kinematic checkpoints with Gemini AI...</div>`;
+                try {
+                    const prompt = `You are a PGA Tour biomechanics golf coach. A golfer has the following swing checkpoints: ${observations.length ? observations.join(', ') : 'Neutral on-plane mechanics'}. Give a concise 3-sentence diagnosis and 1 specific drill prescription.`;
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(state.geminiApiKey)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }]
+                        })
+                    });
+                    const json = await resp.json();
+                    const reply = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (reply) {
+                        outputBox.innerHTML = `
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-mono text-[10px] uppercase tracking-wider text-cyan-400 font-semibold">Gemini Live Coach Analysis</span>
+                            </div>
+                            <p class="text-slate-200 whitespace-pre-line">${reply}</p>
+                        `;
+                        btn.disabled = false;
+                        return;
+                    }
+                } catch (err) {
+                    // Fall back cleanly to built-in rule-based engine
+                }
+                btn.disabled = false;
+            }
+
+            // Built-in Rule-Based Biomechanical Diagnostic Engine
+            let diagnosis = '';
+            let drill = '';
+            let priority = 'Mechanics';
+
+            if (p6 || p4) {
+                priority = 'Transition Plane';
+                diagnosis = 'Trail elbow disconnection at P4 causes the shaft to steepen above the primary plane line at P6, forcing an Out-to-In path.';
+                drill = '<strong>Trail Arm Towel + P4-to-P6 Pump Drill:</strong> Tuck a folded towel under your trail armpit. Make a backswing to P4, pump the hands straight down toward your trail pocket twice, then rotate through.';
+            } else if (p7) {
+                priority = 'Pelvis Depth';
+                diagnosis = 'Pelvis thrusts toward the golf ball during the downswing, reducing spine angle and forcing early wrist release.';
+                drill = '<strong>Chair Glute-Touch Drill:</strong> Set a chair lightly touching your glutes at P1. Maintain contact with the chair through P6 and P7 by rotating the lead hip back rather than forward.';
+            } else if (p2) {
+                priority = 'Takeaway';
+                diagnosis = 'Rolling the wrists early at P2 traps the clubhead behind the hands, triggering a compensatory steep loop at the top.';
+                drill = '<strong>Alignment Stick Belly-Button Drill:</strong> Hold an alignment stick along the grip against your navel; turn your chest so the stick stays pointed at your core until P2.';
+            } else {
+                priority = 'Optimization';
+                diagnosis = 'Solid neutral checkpoints across P2–P7. Focus on sequencing ground reaction forces and maintaining a 3.0:1 tempo ratio.';
+                drill = '<strong>Metronome 3:1 Tempo Ladder:</strong> Hit 9-iron shots counting "1-2-3" to P4 and "4" at P7 impact to lock in Tour-level transition rhythm.';
+            }
+
+            outputBox.innerHTML = `
+                <div class="flex items-center justify-between mb-1">
+                    <span class="font-mono text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">Diagnostic Report Generated</span>
+                    <span class="font-mono text-[10px] text-slate-400">Priority: ${priority}</span>
+                </div>
+                <p class="text-slate-300">
+                    <strong class="text-white">Kinematic Diagnosis:</strong> ${diagnosis}<br>
+                    <span class="text-emerald-400">Prescribed Drill:</span> ${drill}
+                </p>
+            `;
+            showToast('Updated AI Coach Drill Prescription');
+        }
+
+        function showToast(msg) {
+            const banner = document.getElementById('toastBanner');
+            document.getElementById('toastMessage').textContent = msg;
+            banner.classList.remove('translate-y-20', 'opacity-0');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                banner.classList.add('translate-y-20', 'opacity-0');
+            }, 2600);
+        }
+    </script>
+</body>
+</html>
